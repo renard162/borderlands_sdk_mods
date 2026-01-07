@@ -103,7 +103,7 @@ def get_current_anarchy_stacks():
     )
 
 
-def set_new_anarchy_stacks():
+def apply_new_anarchy_stacks():
     pc = get_pc()
     find_object(
         "DesignerAttributeDefinition",
@@ -206,16 +206,12 @@ def on_save_game(caller_obj:UObject, caller_params:WrappedStruct, function_retur
         if not anarchy_state.have_anarchy_skill:
             return True
         anarchy_state.rational_anarchist_idx = get_rational_anarchist_index()
-        save_file = anarchy_state.save_file
-        anarchy_state.save_file = get_save_file() if (save_file is None) else save_file
+        anarchy_state.save_file = get_save_file()
         if option_persist_anarchy.value:
             anarchy_persist_data = load_json_data()
             anarchy_state.new_stacks = anarchy_persist_data.get(anarchy_state.save_file, 0)
-            set_new_anarchy_stacks()
-            try:
-                anarchy_persist_data.pop(anarchy_state.save_file)
-            except KeyError:
-                pass
+            apply_new_anarchy_stacks()
+            anarchy_persist_data.pop(anarchy_state.save_file, None)
             dump_json_data(anarchy_persist_data)
         anarchy_state.is_first_save = False
     if not anarchy_state.have_anarchy_skill:
@@ -227,9 +223,9 @@ def on_save_game(caller_obj:UObject, caller_params:WrappedStruct, function_retur
 
 @hook("WillowGame.WillowPlayerPawn:SetupPlayerInjuredState")
 def on_ffyl(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
-    debug_print("\nEvent: FFYL")
     if not anarchy_state.have_anarchy_skill:
         return True
+    debug_print("\nEvent: FFYL")
     if need_but_not_have_rational_anarchist():
         return True
     anarchy_state.current_stacks = get_current_anarchy_stacks()
@@ -239,9 +235,9 @@ def on_ffyl(caller_obj:UObject, caller_params:WrappedStruct, function_return:obj
 
 @hook("WillowGame.WillowPlayerPawn:StartInjuredDeathSequence")
 def on_death(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
-    debug_print("\nEvent: Death")
     if not anarchy_state.have_anarchy_skill:
         return True
+    debug_print("\nEvent: Death")
     if need_but_not_have_rational_anarchist():
         return True
     anarchy_state.death_flag = True
@@ -251,9 +247,7 @@ def on_death(caller_obj:UObject, caller_params:WrappedStruct, function_return:ob
 
 @hook("WillowGame.SkillEffectManager:NotifySkillEvent", Type.POST_UNCONDITIONAL)
 def on_respawn(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
-    if not anarchy_state.have_anarchy_skill:
-        return True
-    if not anarchy_state.death_flag:
+    if (not anarchy_state.have_anarchy_skill) or (not anarchy_state.death_flag):
         return True
     debug_print("\nEvent: Respawn")
     try:
@@ -263,29 +257,24 @@ def on_respawn(caller_obj:UObject, caller_params:WrappedStruct, function_return:
         debug_print(f"Exception checking event: {exp}")
         return True
     debug_print(f"Event parameters: {event_type=} {event_instigator=}")
-    if event_type != 34:
-        return True
-    if event_instigator != get_pc():
+    if (event_type != 34) or (event_instigator != get_pc()):
         return True
     anarchy_state.death_flag = False
     if need_but_not_have_rational_anarchist():
         return True
     new_stacks = max(anarchy_state.current_stacks - option_max_stacks_to_lose.value, 0)
     max_stacks = get_max_anarchy_stacks()
-    new_stacks = min(new_stacks, max_stacks)
-    anarchy_state.new_stacks = new_stacks
-    set_new_anarchy_stacks()
+    anarchy_state.new_stacks = min(new_stacks, max_stacks)
+    apply_new_anarchy_stacks()
     anarchy_state.current_stacks = get_current_anarchy_stacks()
-    debug_print(f"Hook Skill:NotifySkillEvent, Type.POST_UNCONDITIONAL\n {new_stacks=}\n {max_stacks=}\n {anarchy_state}\n")
+    debug_print(f"Hook Skill:NotifySkillEvent, Type.POST_UNCONDITIONAL\n {max_stacks=}\n {anarchy_state}\n")
     return True
 
 
 @hook("WillowGame.WillowPlayerController:ReturnToTitleScreen")
 def on_quit(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
     debug_print("\nEvent: Quit")
-    if not anarchy_state.have_anarchy_skill:
-        return True
-    if not option_persist_anarchy.value:
+    if (not anarchy_state.have_anarchy_skill) or (not option_persist_anarchy.value):
         return True
     anarchy_state.current_stacks = get_current_anarchy_stacks()
     if anarchy_state.current_stacks > 0:
