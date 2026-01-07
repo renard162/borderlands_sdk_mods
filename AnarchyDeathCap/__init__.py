@@ -1,0 +1,337 @@
+from dataclasses import dataclass, fields
+from pathlib import Path
+import json
+from json import JSONDecodeError
+
+from mods_base import build_mod, get_pc, hook, SliderOption, BoolOption
+from unrealsdk import find_object
+from unrealsdk.unreal import UObject, UFunction, WrappedStruct
+from unrealsdk.hooks import Type
+
+
+DEBUG_MODE = True
+
+
+MOD_NAME = Path(__file__).resolve().parent.name
+PERSIST_JSON = Path(__file__).resolve().parent.parent.parent / "settings" / f"{MOD_NAME}_persist.json"
+ANARCHY_PATH = "GD_Tulip_Mechromancer_Skills.EmbraceChaos.Anarchy"
+RATIONAL_ANARCHIST_PATH = "GD_Tulip_Mechromancer_Skills.EmbraceChaos.RationalAnarchist"
+ANARCHY_STACK_ATTR_PATH = "GD_Tulip_Mechromancer_Skills.Misc.Att_Anarchy_NumberOfStacks"
+
+
+@dataclass
+class AnarchyState:
+    save_file:str|None = None
+    is_first_save:bool = False
+    have_anarchy_skill:bool = False
+    rational_anarchist_idx:int|None = None
+    current_stacks:int = 0
+    new_stacks:int = 0
+    death_flag:bool = False
+
+    def __str__(self) -> str:
+        lines = [f"{f.name}={getattr(self, f.name)}" for f in fields(self)]
+        return "AnarchyState(\n  " + "\n  ".join(lines) + "\n)"
+
+
+anarchy_state = AnarchyState()
+
+
+def debug_log(message:str):
+    if not DEBUG_MODE:
+        return
+    with open(r"D:\temp\log.log", "a", encoding="utf-8") as f:
+        f.write(f"{message}\n")
+
+    
+def debug_print(message:str):
+    if not DEBUG_MODE:
+        return
+    print(message)
+
+
+def get_skill_tree() -> list[dict]|None:
+    pc = get_pc()
+    if (pc.CharacterClass is not None) and (pc.PlayerSkillTree is not None):
+        return pc.PlayerSkillTree.Skills
+    elif (pc.GetCachedSaveGame() is not None):
+        return pc.GetCachedSaveGame().SkillData
+    return None
+
+
+def have_anarchy_skill():
+    full_skill_tree = get_skill_tree()
+    for idx,skill in enumerate(full_skill_tree):
+        if ANARCHY_PATH in str(skill.Definition):
+            return True
+    return False
+
+
+def get_rational_anarchist_index() -> int|None:
+    full_skill_tree = get_skill_tree()
+    for idx,skill in enumerate(full_skill_tree):
+        if RATIONAL_ANARCHIST_PATH in str(skill.Definition):
+            return idx
+    return None
+
+
+def have_point_in_rational_anarchist() -> bool:
+    if anarchy_state.rational_anarchist_idx is None:
+        return False
+    current_build = get_skill_tree()
+    skill_grade = current_build[anarchy_state.rational_anarchist_idx].Grade
+    return skill_grade > 0
+
+
+def need_but_not_have_rational_anarchist():
+    return option_use_rational_anarchist.value and (not have_point_in_rational_anarchist())
+
+
+def get_current_anarchy_stacks():
+    return int(
+        find_object(
+            "DesignerAttributeDefinition",
+            ANARCHY_STACK_ATTR_PATH
+        )
+        .GetValue(get_pc())[0]
+    )
+
+
+def set_new_anarchy_stacks():
+    pc = get_pc()
+    find_object(
+        "DesignerAttributeDefinition",
+        ANARCHY_STACK_ATTR_PATH
+    ).SetAttributeBaseValue(pc, int(anarchy_state.new_stacks))
+    anarchy_state.new_stacks = 0
+
+
+def get_max_anarchy_stacks():
+    return int(
+        find_object(
+            "DesignerAttributeDefinition",
+            "GD_Tulip_Mechromancer_Skills.Misc.Att_Anarchy_StackCap"
+        )
+        .GetValue(get_pc())[0]
+    )
+
+
+def get_save_file():
+    save_file = get_pc().GetWillowGlobals().GetWillowSaveGameManager().LastLoadedFilePath
+    return save_file
+
+
+def load_json_data():
+    try:
+        with open(PERSIST_JSON, "r", encoding="utf-8") as j:
+            json_data = json.load(j)
+    except (FileNotFoundError, JSONDecodeError):
+        json_data = {}
+    return json_data
+
+
+def dump_json_data(json_data:dict|None=None):
+    if anarchy_state.save_file is None:
+        return
+    if json_data is None:
+        json_data = load_json_data()
+        json_data[anarchy_state.save_file] = anarchy_state.current_stacks
+        debug_print(f"{json_data=}")
+    try:
+        with open(PERSIST_JSON, "w", encoding="utf-8") as j:
+            json.dump(json_data, j, indent=4)
+    except Exception as exp:
+        print(f"AnarchyDeathCap error: {exp}")
+
+
+# =====================================================
+# Options
+# =====================================================
+@BoolOption(
+    identifier="Requires Rational Anarchist",
+    value=True,
+    description="Anarchy stack loss cap only applies if Rational Anarchist is invested.",
+    true_text="Yes",
+    false_text="No",
+)
+def option_use_rational_anarchist(opt:BoolOption, new_value:bool) -> None:
+    opt.value = new_value
+
+
+@SliderOption(
+    identifier="Max stacks to lose",
+    value=50,
+    min_value=0,
+    max_value=600,
+    description="Maximum Anarchy stacks lost upon death.",
+    step=10,
+)
+def option_max_stacks_to_lose(opt:SliderOption, new_value:float) -> None:
+    opt.value = int(new_value)
+
+
+@BoolOption(
+    identifier="Persists on game quit",
+    value=True,
+    description="Save the anarchy stack when quit game and restore on load",
+    true_text="Yes",
+    false_text="No",
+)
+def option_persist_anarchy(opt:BoolOption, new_value:bool) -> None:
+    opt.value = new_value
+
+
+# =====================================================
+# Hooks
+# =====================================================
+@hook("WillowGame.PlayerSkillTree:Initialize")
+def on_initialize_skill_tree(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
+    debug_print("\nEvent: Initialize Skill Tree")
+    anarchy_state.is_first_save = True
+    debug_print(f"Hook PlayerSkillTree:Initialize\n {anarchy_state}\n")
+    return True
+
+
+@hook("WillowGame.WillowPlayerController:SaveGame")
+def on_save_game(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
+    debug_print("\nEvent: SaveGame")
+    if anarchy_state.is_first_save:
+        anarchy_state.have_anarchy_skill = have_anarchy_skill()
+        if not anarchy_state.have_anarchy_skill:
+            return True
+        anarchy_state.rational_anarchist_idx = get_rational_anarchist_index()
+        save_file = anarchy_state.save_file
+        anarchy_state.save_file = get_save_file() if (save_file is None) else save_file
+        if option_persist_anarchy.value:
+            anarchy_persist_data = load_json_data()
+            anarchy_state.new_stacks = anarchy_persist_data.get(anarchy_state.save_file, 0)
+            set_new_anarchy_stacks()
+            try:
+                anarchy_persist_data.pop(anarchy_state.save_file)
+            except KeyError:
+                pass
+            dump_json_data(anarchy_persist_data)
+        anarchy_state.is_first_save = False
+    if not anarchy_state.have_anarchy_skill:
+        return True
+    anarchy_state.current_stacks = get_current_anarchy_stacks()
+    debug_print(f"Hook WillowPlayerController:SaveGame\n {anarchy_state}\n")
+    return True
+
+
+@hook("WillowGame.WillowPlayerPawn:SetupPlayerInjuredState")
+def on_ffyl(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
+    debug_print("\nEvent: FFYL")
+    if not anarchy_state.have_anarchy_skill:
+        return True
+    if need_but_not_have_rational_anarchist():
+        return True
+    anarchy_state.current_stacks = get_current_anarchy_stacks()
+    debug_print(f"Hook WillowPlayerPawn:SetupPlayerInjuredState\n {anarchy_state}\n")
+    return True
+
+
+@hook("WillowGame.WillowPlayerPawn:StartInjuredDeathSequence")
+def on_death(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
+    debug_print("\nEvent: Death")
+    if not anarchy_state.have_anarchy_skill:
+        return True
+    if need_but_not_have_rational_anarchist():
+        return True
+    anarchy_state.death_flag = True
+    debug_print(f"Hook WillowPlayerPawn:StartInjuredDeathSequence\n {anarchy_state}\n")
+    return True
+
+
+@hook("WillowGame.SkillEffectManager:NotifySkillEvent", Type.POST_UNCONDITIONAL)
+def on_respawn(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
+    debug_print("\nEvent: Respawn")
+    if not anarchy_state.have_anarchy_skill:
+        return True
+    if not anarchy_state.death_flag:
+        return True
+    try:
+        event_type = int(caller_params.EventType)
+        event_instigator = caller_params.EventInstigator
+    except Exception as exp:
+        debug_print(f"Exception checking event: {exp}")
+        return True
+    debug_print(f"Event parameters: {event_type=} {event_instigator=}")
+    if event_type != 34:
+        return True
+    if event_instigator != get_pc():
+        return True
+    anarchy_state.death_flag = False
+    if need_but_not_have_rational_anarchist():
+        return True
+    new_stacks = max(anarchy_state.current_stacks - option_max_stacks_to_lose.value, 0)
+    max_stacks = get_max_anarchy_stacks()
+    new_stacks = min(new_stacks, max_stacks)
+    anarchy_state.new_stacks = new_stacks
+    set_new_anarchy_stacks()
+    anarchy_state.current_stacks = get_current_anarchy_stacks()
+    debug_print(f"Hook Skill:NotifySkillEvent, Type.POST_UNCONDITIONAL\n {new_stacks=}\n {max_stacks=}\n {anarchy_state}\n")
+    return True
+
+
+@hook("WillowGame.WillowPlayerController:ReturnToTitleScreen")
+def on_quit(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
+    debug_print("\nEvent: Quit")
+    if not anarchy_state.have_anarchy_skill:
+        return True
+    if not option_persist_anarchy.value:
+        return True
+    anarchy_state.current_stacks = get_current_anarchy_stacks()
+    if anarchy_state.current_stacks > 0:
+        dump_json_data()
+    debug_print(f"Hook WillowPlayerController:ReturnToTitleScreen\n {anarchy_state}\n")
+    return True
+
+
+# @hook("WillowGame.Skill:NotifySkillEvent", Type.POST_UNCONDITIONAL)
+# def on_skill_event1(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
+#     debug_print(f"\nHook Skill:NotifySkillEvent\n Type.POST_UNCONDITIONAL\n")
+#     debug_log(f'Skill: {caller_params=}')
+#     return True
+
+# @hook("WillowGame.SkillEffectManager:NotifySkillEvent", Type.POST_UNCONDITIONAL)
+# def on_skill_event2(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
+#     debug_print(f"\nHook SkillEffectManager:NotifySkillEvent\n Type.POST_UNCONDITIONAL\n")
+#     debug_log(f'SkillEffectManager: {caller_params=}')
+#     return True
+
+# @hook("WillowGame.Skill:NotifySkillEvent", Type.POST)
+# def on_skill_event2(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
+#     debug_print(f"Hook Skill:NotifySkillEvent\n Type.POST\n")
+#     return True
+
+# @hook("WillowGame.Skill:NotifySkillEvent", Type.PRE)
+# def on_skill_event3(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
+#     debug_print(f"Hook Skill:NotifySkillEvent\n Type.PRE\n")
+#     return True
+
+# @hook("WillowGame.SkillEffectManager:NotifySkillEvent", Type.POST_UNCONDITIONAL)
+# def on_skill_event4(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
+#     debug_print(f"Hook SkillEffectManager:NotifySkillEvent\n Type.POST_UNCONDITIONAL\n")
+#     debug_print(f'{caller_obj=}\n{caller_params=}\n{function_return=}')
+#     return True
+
+# @hook("WillowGame.SkillEffectManager:NotifySkillEvent", Type.POST)
+# def on_skill_event5(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
+#     debug_print(f"Hook SkillEffectManager:NotifySkillEvent\n Type.POST\n")
+#     return True
+
+# @hook("WillowGame.SkillEffectManager:NotifySkillEvent", Type.PRE)
+# def on_skill_event6(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
+#     debug_print(f"Hook SkillEffectManager:NotifySkillEvent\n Type.PRE\n")
+#     return True
+
+
+mod = build_mod(
+    options=[
+        option_max_stacks_to_lose,
+        option_use_rational_anarchist,
+        option_persist_anarchy,
+    ]
+)
+

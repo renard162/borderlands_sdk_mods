@@ -1,0 +1,15 @@
+[project]
+name = "AnarchyDeathCap"
+version = "1.0"
+authors = [{ name = "renard162" }]
+description = """\
+    Limits Anarchy stack loss on death for Mechromancer.
+    Optionally requires Rational Anarchist.
+"""
+
+[tool.sdkmod]
+name = "Anarchy Death Cap"
+license = {name = "MIT", url = "https://choosealicense.com/licenses/mit/" }
+download = "https://github.com/renard162"
+supported_games = ["BL2"]
+version = "1.0"
