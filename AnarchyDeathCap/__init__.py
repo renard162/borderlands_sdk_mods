@@ -12,6 +12,9 @@ from unrealsdk.hooks import Type
 DEBUG_MODE = True
 
 
+# =====================================================
+# Constants
+# =====================================================
 MOD_NAME = Path(__file__).resolve().parent.name
 PERSIST_JSON = Path(__file__).resolve().parent.parent.parent / "settings" / f"{MOD_NAME}_persist.json"
 ANARCHY_PATH = "GD_Tulip_Mechromancer_Skills.EmbraceChaos.Anarchy"
@@ -37,6 +40,9 @@ class AnarchyState:
 anarchy_state = AnarchyState()
 
 
+# =====================================================
+# Aux functions
+# =====================================================
 def debug_log(message:str):
     if not DEBUG_MODE:
         return
@@ -288,45 +294,9 @@ def on_quit(caller_obj:UObject, caller_params:WrappedStruct, function_return:obj
     return True
 
 
-# @hook("WillowGame.Skill:NotifySkillEvent", Type.POST_UNCONDITIONAL)
-# def on_skill_event1(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
-#     debug_print(f"\nHook Skill:NotifySkillEvent\n Type.POST_UNCONDITIONAL\n")
-#     debug_log(f'Skill: {caller_params=}')
-#     return True
-
-# @hook("WillowGame.SkillEffectManager:NotifySkillEvent", Type.POST_UNCONDITIONAL)
-# def on_skill_event2(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
-#     debug_print(f"\nHook SkillEffectManager:NotifySkillEvent\n Type.POST_UNCONDITIONAL\n")
-#     debug_log(f'SkillEffectManager: {caller_params=}')
-#     return True
-
-# @hook("WillowGame.Skill:NotifySkillEvent", Type.POST)
-# def on_skill_event2(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
-#     debug_print(f"Hook Skill:NotifySkillEvent\n Type.POST\n")
-#     return True
-
-# @hook("WillowGame.Skill:NotifySkillEvent", Type.PRE)
-# def on_skill_event3(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
-#     debug_print(f"Hook Skill:NotifySkillEvent\n Type.PRE\n")
-#     return True
-
-# @hook("WillowGame.SkillEffectManager:NotifySkillEvent", Type.POST_UNCONDITIONAL)
-# def on_skill_event4(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
-#     debug_print(f"Hook SkillEffectManager:NotifySkillEvent\n Type.POST_UNCONDITIONAL\n")
-#     debug_print(f'{caller_obj=}\n{caller_params=}\n{function_return=}')
-#     return True
-
-# @hook("WillowGame.SkillEffectManager:NotifySkillEvent", Type.POST)
-# def on_skill_event5(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
-#     debug_print(f"Hook SkillEffectManager:NotifySkillEvent\n Type.POST\n")
-#     return True
-
-# @hook("WillowGame.SkillEffectManager:NotifySkillEvent", Type.PRE)
-# def on_skill_event6(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
-#     debug_print(f"Hook SkillEffectManager:NotifySkillEvent\n Type.PRE\n")
-#     return True
-
-
+# =====================================================
+# Mod register
+# =====================================================
 mod = build_mod(
     options=[
         option_max_stacks_to_lose,
