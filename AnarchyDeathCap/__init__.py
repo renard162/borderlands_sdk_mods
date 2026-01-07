@@ -166,7 +166,7 @@ option_max_stacks_to_lose = SliderOption(
     min_value=0,
     max_value=600,
     description="Maximum Anarchy stacks lost upon death.",
-    step=10,
+    step=5,
 )
 
 
