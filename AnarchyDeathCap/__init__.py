@@ -280,6 +280,7 @@ def on_respawn(caller_obj:UObject, caller_params:WrappedStruct, function_return:
     if need_but_not_have_rational_anarchist():
         return True
     new_stacks = max(anarchy_state.current_stacks - option_max_stacks_to_lose.value, 0)
+    new_stacks = 0 if have_point_in_rational_anarchist() and (new_stacks < 25) else new_stacks
     max_stacks = get_max_anarchy_stacks()
     anarchy_state.new_stacks = min(new_stacks, max_stacks)
     anarchy_state.current_stacks = 0
