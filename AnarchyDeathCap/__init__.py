@@ -3,13 +3,13 @@ from pathlib import Path
 import json
 from json import JSONDecodeError
 
-from mods_base import build_mod, get_pc, hook, HookType, SliderOption, BoolOption
+from mods_base import build_mod, get_pc, hook, HookType, SliderOption, BoolOption, HiddenOption
 from unrealsdk import find_object
 from unrealsdk.unreal import UObject, UFunction, WrappedStruct
 from unrealsdk.hooks import Type
 
 
-DEBUG_MODE = False
+DEBUG_MODE = True
 
 
 # =====================================================
@@ -126,7 +126,7 @@ def get_save_file():
     return save_file
 
 
-def load_json_data():
+def load_persistent_data():
     try:
         with open(PERSIST_JSON, "r", encoding="utf-8") as j:
             json_data = json.load(j)
@@ -135,11 +135,11 @@ def load_json_data():
     return json_data
 
 
-def dump_json_data(json_data:dict|None=None):
+def dump_persistent_data(json_data:dict|None=None):
     if anarchy_state.save_file is None:
         return
     if json_data is None:
-        json_data = load_json_data()
+        json_data = load_persistent_data()
         json_data[anarchy_state.save_file] = anarchy_state.current_stacks
     try:
         with open(PERSIST_JSON, "w", encoding="utf-8") as j:
@@ -151,18 +151,16 @@ def dump_json_data(json_data:dict|None=None):
 # =====================================================
 # Options
 # =====================================================
-@BoolOption(
+option_use_rational_anarchist = BoolOption(
     identifier="Requires Rational Anarchist",
     value=True,
     description="Anarchy stack loss cap only applies if Rational Anarchist is invested.",
     true_text="Yes",
     false_text="No",
 )
-def option_use_rational_anarchist(opt:BoolOption, new_value:bool) -> None:
-    opt.value = new_value
 
 
-@SliderOption(
+option_max_stacks_to_lose = SliderOption(
     identifier="Max stacks to lose on death",
     value=50,
     min_value=0,
@@ -170,19 +168,15 @@ def option_use_rational_anarchist(opt:BoolOption, new_value:bool) -> None:
     description="Maximum Anarchy stacks lost upon death.",
     step=10,
 )
-def option_max_stacks_to_lose(opt:SliderOption, new_value:float) -> None:
-    opt.value = int(new_value)
 
 
-@BoolOption(
+option_persist_anarchy = BoolOption(
     identifier="Persists on game quit",
     value=True,
     description="Save the anarchy stack when quit game and restore on load",
     true_text="Yes",
     false_text="No",
 )
-def option_persist_anarchy(opt:BoolOption, new_value:bool) -> None:
-    opt.value = new_value
 
 
 # =====================================================
@@ -206,11 +200,11 @@ def on_save_game(caller_obj:UObject, caller_params:WrappedStruct, function_retur
         anarchy_state.rational_anarchist_idx = get_rational_anarchist_index()
         anarchy_state.save_file = get_save_file()
         if option_persist_anarchy.value:
-            anarchy_persist_data = load_json_data()
+            anarchy_persist_data = load_persistent_data()
             anarchy_state.new_stacks = anarchy_persist_data.get(anarchy_state.save_file, 0)
             apply_new_anarchy_stacks()
             anarchy_persist_data.pop(anarchy_state.save_file, None)
-            dump_json_data(anarchy_persist_data)
+            dump_persistent_data(anarchy_persist_data)
         anarchy_state.is_first_save = False
     if not anarchy_state.have_anarchy_skill:
         return True
@@ -297,7 +291,7 @@ def on_quit(caller_obj:UObject, caller_params:WrappedStruct, function_return:obj
         return True
     anarchy_state.current_stacks = get_current_anarchy_stacks()
     if anarchy_state.current_stacks > 0:
-        dump_json_data()
+        dump_persistent_data()
     debug_print(f"{anarchy_state}\n")
     return True
 
