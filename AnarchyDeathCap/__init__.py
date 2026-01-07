@@ -1,7 +1,4 @@
 from dataclasses import dataclass, fields
-from pathlib import Path
-import json
-from json import JSONDecodeError
 
 from mods_base import build_mod, get_pc, hook, HookType, SliderOption, BoolOption, HiddenOption
 from unrealsdk import find_object
@@ -9,14 +6,9 @@ from unrealsdk.unreal import UObject, UFunction, WrappedStruct
 from unrealsdk.hooks import Type
 
 
-DEBUG_MODE = True
-
-
 # =====================================================
 # Constants and global variables
 # =====================================================
-MOD_NAME = Path(__file__).resolve().parent.name
-PERSIST_JSON = Path(__file__).resolve().parent.parent.parent / "settings" / f"{MOD_NAME}_persist.json"
 ANARCHY_PATH = "GD_Tulip_Mechromancer_Skills.EmbraceChaos.Anarchy"
 RATIONAL_ANARCHIST_PATH = "GD_Tulip_Mechromancer_Skills.EmbraceChaos.RationalAnarchist"
 ANARCHY_STACK_ATTR_PATH = "GD_Tulip_Mechromancer_Skills.Misc.Att_Anarchy_NumberOfStacks"
@@ -43,10 +35,46 @@ anarchy_state = AnarchyState()
 
 
 # =====================================================
+# Options
+# =====================================================
+option_use_rational_anarchist = BoolOption(
+    identifier="Requires Rational Anarchist",
+    value=True,
+    description="Anarchy stack loss cap only applies if Rational Anarchist is invested.",
+    true_text="Yes",
+    false_text="No",
+)
+
+
+option_max_stacks_to_lose = SliderOption(
+    identifier="Max stacks to lose on death",
+    value=50,
+    min_value=0,
+    max_value=600,
+    description="Maximum Anarchy stacks lost upon death.",
+    step=5,
+)
+
+
+option_persist_anarchy = BoolOption(
+    identifier="Persists on game quit",
+    value=True,
+    description="Save the anarchy stack when quit game and restore on load",
+    true_text="Yes",
+    false_text="No",
+)
+
+
+cache_persistent_anarchy_data = HiddenOption("persistent_anarchy_data", {})
+
+debug_mode = HiddenOption("debug_mode", False)
+
+
+# =====================================================
 # Aux functions
 # =====================================================
 def debug_print(message:str):
-    if not DEBUG_MODE:
+    if not debug_mode.value:
         return
     print(message)
 
@@ -127,56 +155,17 @@ def get_save_file():
 
 
 def load_persistent_data():
-    try:
-        with open(PERSIST_JSON, "r", encoding="utf-8") as j:
-            json_data = json.load(j)
-    except (FileNotFoundError, JSONDecodeError):
-        json_data = {}
-    return json_data
+    return cache_persistent_anarchy_data.value
 
 
-def dump_persistent_data(json_data:dict|None=None):
+def dump_persistent_data(anarchy_data:dict|None=None):
     if anarchy_state.save_file is None:
         return
-    if json_data is None:
-        json_data = load_persistent_data()
-        json_data[anarchy_state.save_file] = anarchy_state.current_stacks
-    try:
-        with open(PERSIST_JSON, "w", encoding="utf-8") as j:
-            json.dump(json_data, j, indent=4)
-    except Exception as exp:
-        print(f"AnarchyDeathCap error: {exp}")
-
-
-# =====================================================
-# Options
-# =====================================================
-option_use_rational_anarchist = BoolOption(
-    identifier="Requires Rational Anarchist",
-    value=True,
-    description="Anarchy stack loss cap only applies if Rational Anarchist is invested.",
-    true_text="Yes",
-    false_text="No",
-)
-
-
-option_max_stacks_to_lose = SliderOption(
-    identifier="Max stacks to lose on death",
-    value=50,
-    min_value=0,
-    max_value=600,
-    description="Maximum Anarchy stacks lost upon death.",
-    step=5,
-)
-
-
-option_persist_anarchy = BoolOption(
-    identifier="Persists on game quit",
-    value=True,
-    description="Save the anarchy stack when quit game and restore on load",
-    true_text="Yes",
-    false_text="No",
-)
+    if anarchy_data is None:
+        anarchy_data = load_persistent_data()
+        anarchy_data[anarchy_state.save_file] = anarchy_state.current_stacks
+    cache_persistent_anarchy_data.value = anarchy_data
+    cache_persistent_anarchy_data.save()
 
 
 # =====================================================
@@ -304,6 +293,8 @@ mod = build_mod(
         option_max_stacks_to_lose,
         option_use_rational_anarchist,
         option_persist_anarchy,
+        cache_persistent_anarchy_data,
+        debug_mode,
     ]
 )
 
