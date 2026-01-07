@@ -20,6 +20,7 @@ PERSIST_JSON = Path(__file__).resolve().parent.parent.parent / "settings" / f"{M
 ANARCHY_PATH = "GD_Tulip_Mechromancer_Skills.EmbraceChaos.Anarchy"
 RATIONAL_ANARCHIST_PATH = "GD_Tulip_Mechromancer_Skills.EmbraceChaos.RationalAnarchist"
 ANARCHY_STACK_ATTR_PATH = "GD_Tulip_Mechromancer_Skills.Misc.Att_Anarchy_NumberOfStacks"
+ANARCHY_MAX_STACK_ATTR_PATH = "GD_Tulip_Mechromancer_Skills.Misc.Att_Anarchy_StackCap"
 
 
 @dataclass
@@ -67,6 +68,8 @@ def get_skill_tree() -> list[dict]|None:
 
 def have_anarchy_skill():
     full_skill_tree = get_skill_tree()
+    if full_skill_tree is None:
+        return False
     for idx,skill in enumerate(full_skill_tree):
         if ANARCHY_PATH in str(skill.Definition):
             return True
@@ -75,6 +78,8 @@ def have_anarchy_skill():
 
 def get_rational_anarchist_index() -> int|None:
     full_skill_tree = get_skill_tree()
+    if full_skill_tree is None:
+        return None
     for idx,skill in enumerate(full_skill_tree):
         if RATIONAL_ANARCHIST_PATH in str(skill.Definition):
             return idx
@@ -82,9 +87,9 @@ def get_rational_anarchist_index() -> int|None:
 
 
 def have_point_in_rational_anarchist() -> bool:
-    if anarchy_state.rational_anarchist_idx is None:
-        return False
     current_build = get_skill_tree()
+    if (anarchy_state.rational_anarchist_idx is None) or (current_build is None):
+        return False
     skill_grade = current_build[anarchy_state.rational_anarchist_idx].Grade
     return skill_grade > 0
 
@@ -103,6 +108,16 @@ def get_current_anarchy_stacks():
     )
 
 
+def get_max_anarchy_stacks():
+    return int(
+        find_object(
+            "DesignerAttributeDefinition",
+            ANARCHY_MAX_STACK_ATTR_PATH
+        )
+        .GetValue(get_pc())[0]
+    )
+
+
 def apply_new_anarchy_stacks():
     pc = get_pc()
     find_object(
@@ -110,16 +125,6 @@ def apply_new_anarchy_stacks():
         ANARCHY_STACK_ATTR_PATH
     ).SetAttributeBaseValue(pc, int(anarchy_state.new_stacks))
     anarchy_state.new_stacks = 0
-
-
-def get_max_anarchy_stacks():
-    return int(
-        find_object(
-            "DesignerAttributeDefinition",
-            "GD_Tulip_Mechromancer_Skills.Misc.Att_Anarchy_StackCap"
-        )
-        .GetValue(get_pc())[0]
-    )
 
 
 def get_save_file():
