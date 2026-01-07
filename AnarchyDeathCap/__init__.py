@@ -45,13 +45,6 @@ anarchy_state = AnarchyState()
 # =====================================================
 # Aux functions
 # =====================================================
-def debug_log(message:str):
-    if not DEBUG_MODE:
-        return
-    with open(r"D:\temp\log.log", "a", encoding="utf-8") as f:
-        f.write(f"{message}\n")
-
-    
 def debug_print(message:str):
     if not DEBUG_MODE:
         return
@@ -195,19 +188,17 @@ def option_persist_anarchy(opt:BoolOption, new_value:bool) -> None:
 # =====================================================
 # Hooks
 # =====================================================
-ON_INITIALIZE_HOOK_PARAMS = ("WillowGame.PlayerSkillTree:Initialize", Type.PRE)
-@hook(*ON_INITIALIZE_HOOK_PARAMS)
+@hook("WillowGame.PlayerSkillTree:Initialize", Type.PRE)
 def on_initialize(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
-    debug_print(f"\nEvent: Initialize\nHook: {ON_INITIALIZE_HOOK_PARAMS[0][11:]}, {ON_INITIALIZE_HOOK_PARAMS[1]}")
+    debug_print("\nEvent: Initialize")
     anarchy_state.is_first_save = True
     debug_print(f"{anarchy_state}\n")
     return True
 
 
-ON_SAVE_HOOK_PARAMS = ("WillowGame.WillowPlayerController:SaveGame", Type.PRE)
-@hook(*ON_SAVE_HOOK_PARAMS)
+@hook("WillowGame.WillowPlayerController:SaveGame", Type.PRE)
 def on_save_game(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
-    debug_print(f"\nEvent: SaveGame\nHook: {ON_SAVE_HOOK_PARAMS[0][11:]}, {ON_SAVE_HOOK_PARAMS[1]}")
+    debug_print("\nEvent: SaveGame")
     if anarchy_state.is_first_save:
         anarchy_state.have_anarchy_skill = have_anarchy_skill()
         if not anarchy_state.have_anarchy_skill:
@@ -228,12 +219,11 @@ def on_save_game(caller_obj:UObject, caller_params:WrappedStruct, function_retur
     return True
 
 
-ON_FFYL_HOOK_PARAMS = ("WillowGame.WillowPlayerPawn:SetupPlayerInjuredState", Type.PRE)
-@hook(*ON_FFYL_HOOK_PARAMS)
+@hook("WillowGame.WillowPlayerPawn:SetupPlayerInjuredState", Type.PRE)
 def on_ffyl(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
     if not anarchy_state.have_anarchy_skill:
         return True
-    debug_print(f"\nEvent: FFYL\nHook: {ON_FFYL_HOOK_PARAMS[0][11:]}, {ON_FFYL_HOOK_PARAMS[1]}")
+    debug_print("\nEvent: FFYL")
     if need_but_not_have_rational_anarchist():
         return True
     anarchy_state.current_stacks = get_current_anarchy_stacks()
@@ -241,12 +231,11 @@ def on_ffyl(caller_obj:UObject, caller_params:WrappedStruct, function_return:obj
     return True
 
 
-ON_DEATH_HOOK_PARAMS = ("WillowGame.WillowPlayerPawn:StartInjuredDeathSequence", Type.PRE)
-@hook(*ON_DEATH_HOOK_PARAMS)
+@hook("WillowGame.WillowPlayerPawn:StartInjuredDeathSequence", Type.PRE)
 def on_death(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
     if not anarchy_state.have_anarchy_skill:
         return True
-    debug_print(f"\nEvent: Death\nHook: {ON_DEATH_HOOK_PARAMS[0][11:]}, {ON_DEATH_HOOK_PARAMS[1]}")
+    debug_print("\nEvent: Death")
     if need_but_not_have_rational_anarchist():
         return True
     anarchy_state.death_flag = True
@@ -254,13 +243,12 @@ def on_death(caller_obj:UObject, caller_params:WrappedStruct, function_return:ob
     return True
 
 
-ON_TICK_HOOK_PARAMS = ("WillowGame.WillowPlayerController:PlayerTick", Type.POST)
 def on_tick(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
     if anarchy_state.ticks_until_apply < 0:
         ON_TICK_HOOK.disable()
         return True
     if (anarchy_state.ticks_until_apply < 1) and (anarchy_state.new_stacks > 0):
-        debug_print(f"\nEvent: Tick\nHook: {ON_TICK_HOOK_PARAMS[0][11:]}, {ON_TICK_HOOK_PARAMS[1]}")
+        debug_print("\nEvent: Tick")
         apply_new_anarchy_stacks()
         anarchy_state.current_stacks = get_current_anarchy_stacks()
         debug_print(f"{anarchy_state}\n")
@@ -270,16 +258,15 @@ def on_tick(caller_obj:UObject, caller_params:WrappedStruct, function_return:obj
 ON_TICK_HOOK = HookType(
     on_tick,
     hook_identifier="on_tick_post_respawn",
-    hook_funcs=[ON_TICK_HOOK_PARAMS]
+    hook_funcs=[("WillowGame.WillowPlayerController:PlayerTick", Type.POST)]
 )
 
 
-ON_RESPAWN_HOOK_PARAMS = ("WillowGame.SkillEffectManager:NotifySkillEvent", Type.POST_UNCONDITIONAL)
-@hook(*ON_RESPAWN_HOOK_PARAMS)
+@hook("WillowGame.SkillEffectManager:NotifySkillEvent", Type.POST_UNCONDITIONAL)
 def on_respawn(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
     if (not anarchy_state.have_anarchy_skill) or (not anarchy_state.death_flag):
         return True
-    debug_print(f"\nEvent: Respawn\nHook: {ON_RESPAWN_HOOK_PARAMS[0][11:]}, {ON_RESPAWN_HOOK_PARAMS[1]}")
+    debug_print("\nEvent: Respawn")
     try:
         event_type = int(caller_params.EventType)
         event_instigator = caller_params.EventInstigator
@@ -302,10 +289,9 @@ def on_respawn(caller_obj:UObject, caller_params:WrappedStruct, function_return:
     return True
 
 
-ON_QUIT_HOOK_PARAMS = ("WillowGame.WillowPlayerController:ReturnToTitleScreen", Type.PRE)
-@hook(*ON_QUIT_HOOK_PARAMS)
+@hook("WillowGame.WillowPlayerController:ReturnToTitleScreen", Type.PRE)
 def on_quit(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
-    debug_print(f"\nEvent: Quit\nHook: {ON_QUIT_HOOK_PARAMS[0][11:]}, {ON_QUIT_HOOK_PARAMS[1]}")
+    debug_print("\nEvent: Quit")
     if (not anarchy_state.have_anarchy_skill) or (not option_persist_anarchy.value):
         return True
     anarchy_state.current_stacks = get_current_anarchy_stacks()
