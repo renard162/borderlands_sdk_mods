@@ -1,3 +1,10 @@
 # Changelog
 
-- 1.0: Initial release
+- 1.0:
+    - Initial release
+<br>
+
+- 1.1:
+    - Removed: external JSON dependency
+    - Feature: With Rational Anarchist, Anarchy stacks reset to 0 on death if below 25
+    - Refactored: simpler and clearer implementation
