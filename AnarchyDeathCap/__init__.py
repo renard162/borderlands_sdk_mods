@@ -251,11 +251,11 @@ def on_death(caller_obj:UObject, caller_params:WrappedStruct, function_return:ob
 
 @hook("WillowGame.SkillEffectManager:NotifySkillEvent", Type.POST_UNCONDITIONAL)
 def on_respawn(caller_obj:UObject, caller_params:WrappedStruct, function_return:object, function:UFunction) -> bool:
-    debug_print("\nEvent: Respawn")
     if not anarchy_state.have_anarchy_skill:
         return True
     if not anarchy_state.death_flag:
         return True
+    debug_print("\nEvent: Respawn")
     try:
         event_type = int(caller_params.EventType)
         event_instigator = caller_params.EventInstigator
