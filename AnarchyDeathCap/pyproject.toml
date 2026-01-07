@@ -1,11 +1,12 @@
 [project]
 name = "AnarchyDeathCap"
-version = "1.0"
+version = "1.1"
 authors = [{ name = "renard162" }]
 description = """\
-    Limits Anarchy stack loss on death for Mechromancer.
-    Optionally requires Rational Anarchist.
-    Persists anarchy stacks upon game quit.
+    Limits Anarchy stack loss on death for the Mechromancer.
+    Persists Anarchy stacks when quitting the game.
+    The stack loss limitation can optionally require points in Rational Anarchist.
+    When the player has points in Rational Anarchist and respawns with fewer than 25 Anarchy stacks, stacks are reset to 0, since building Anarchy is easier from zero than from low values.
 """
 
 [project.urls]
@@ -16,4 +17,4 @@ name = "Anarchy Death Cap"
 license = {name = "MIT", url = "https://choosealicense.com/licenses/mit/" }
 download = "https://github.com/renard162/borderlands_sdk_mods/releases/download/Releases/AnarchyDeathCap.sdkmod"
 supported_games = ["BL2"]
-version = "1.0"
+version = "1.1"
