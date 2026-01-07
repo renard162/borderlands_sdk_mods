@@ -5,11 +5,15 @@ authors = [{ name = "renard162" }]
 description = """\
     Limits Anarchy stack loss on death for Mechromancer.
     Optionally requires Rational Anarchist.
+    Persists anarchy stacks upon game quit.
 """
+
+[project.urls]
+Changelog = "https://github.com/renard162/borderlands_sdk_mods/blob/master/AnarchyDeathCap/Readme.md"
 
 [tool.sdkmod]
 name = "Anarchy Death Cap"
 license = {name = "MIT", url = "https://choosealicense.com/licenses/mit/" }
-download = "https://github.com/renard162"
+download = "https://github.com/renard162/borderlands_sdk_mods/releases/download/Releases/AnarchyDeathCap.sdkmod"
 supported_games = ["BL2"]
 version = "1.0"
