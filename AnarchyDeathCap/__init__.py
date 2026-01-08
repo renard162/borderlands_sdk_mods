@@ -20,7 +20,6 @@ class AnarchyState:
     save_file:str|None = None
     is_first_save:bool = False
     have_anarchy_skill:bool = False
-    #rational_anarchist_idx:int|None = None
     current_stacks:int = 0
     new_stacks:int = 0
     death_flag:bool = False
@@ -160,17 +159,6 @@ def get_max_anarchy_stacks() -> int:
     )
 
 
-def get_rational_anarchist_object() -> UObject|None:
-    try:
-        return find_object(
-                "SkillDefinition",
-                RATIONAL_ANARCHIST_PATH
-            )
-    except Exception as exp:
-        debug_print(f"Error geting Rational Anarchist object: {exp}")
-        return None
-
-
 def apply_new_anarchy_stacks() -> None:
     pc = get_pc()
     find_object(
@@ -205,6 +193,17 @@ def dump_persistent_data(anarchy_data:dict|None=None) -> None:
 # =====================================================
 # Rational Anarchist description functions
 # =====================================================
+def get_rational_anarchist_object() -> UObject|None:
+    try:
+        return find_object(
+                "SkillDefinition",
+                RATIONAL_ANARCHIST_PATH
+            )
+    except Exception as exp:
+        debug_print(f"Error geting Rational Anarchist object: {exp}")
+        return None
+
+
 def get_rational_anarchist_base_description(skill:UObject|None=None) -> None:
     if skill is None:
         skill = get_rational_anarchist_object()
@@ -226,7 +225,7 @@ def set_rational_anarchist_extra_description() -> None:
     max_stacks_to_lose = option_max_stacks_to_lose.value
     rational_anarchist.extra_description = (
         f"You lose no more than {max_stacks_to_lose} [skill]Anarchy[-skill] stacks upon death. "
-        + "If this would reduce your [skill]Anarchy[-skill] stacks below 25, they are instead reset to zero."
+       + "If this would reduce your [skill]Anarchy[-skill] stacks below 25, they are instead reset to zero."
     )
 
 
