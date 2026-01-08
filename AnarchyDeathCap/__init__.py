@@ -73,7 +73,7 @@ debug_mode = HiddenOption("debug_mode", False)
 # =====================================================
 # Aux functions
 # =====================================================
-def debug_print(message:str):
+def debug_print(message:str) -> None:
     if not debug_mode.value:
         return
     print(message)
@@ -88,7 +88,7 @@ def get_skill_tree() -> list[dict]|None:
     return None
 
 
-def have_anarchy_skill():
+def have_anarchy_skill() -> bool:
     full_skill_tree = get_skill_tree()
     if full_skill_tree is None:
         return False
@@ -116,11 +116,11 @@ def have_point_in_rational_anarchist() -> bool:
     return skill_grade > 0
 
 
-def need_but_not_have_rational_anarchist():
+def need_but_not_have_rational_anarchist() -> bool:
     return option_use_rational_anarchist.value and (not have_point_in_rational_anarchist())
 
 
-def get_current_anarchy_stacks():
+def get_current_anarchy_stacks() -> int:
     return int(
         find_object(
             "DesignerAttributeDefinition",
@@ -130,7 +130,7 @@ def get_current_anarchy_stacks():
     )
 
 
-def get_max_anarchy_stacks():
+def get_max_anarchy_stacks() -> int:
     return int(
         find_object(
             "DesignerAttributeDefinition",
@@ -140,7 +140,7 @@ def get_max_anarchy_stacks():
     )
 
 
-def apply_new_anarchy_stacks():
+def apply_new_anarchy_stacks() -> None:
     pc = get_pc()
     find_object(
         "DesignerAttributeDefinition",
@@ -149,16 +149,16 @@ def apply_new_anarchy_stacks():
     anarchy_state.new_stacks = 0
 
 
-def get_save_file():
+def get_save_file() -> str:
     save_file = get_pc().GetWillowGlobals().GetWillowSaveGameManager().LastLoadedFilePath
     return save_file
 
 
-def load_persistent_data():
+def load_persistent_data() -> dict[str,int]:
     return cache_persistent_anarchy_data.value
 
 
-def dump_persistent_data(anarchy_data:dict|None=None):
+def dump_persistent_data(anarchy_data:dict|None=None) -> None:
     if anarchy_state.save_file is None:
         return
     if anarchy_data is None:
