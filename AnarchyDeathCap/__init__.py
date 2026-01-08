@@ -92,7 +92,7 @@ def have_anarchy_skill() -> bool:
     full_skill_tree = get_skill_tree()
     if full_skill_tree is None:
         return False
-    for idx,skill in enumerate(full_skill_tree):
+    for skill in full_skill_tree:
         if ANARCHY_PATH in str(skill.Definition):
             return True
     return False
