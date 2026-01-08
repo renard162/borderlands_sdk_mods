@@ -20,7 +20,7 @@ class AnarchyState:
     save_file:str|None = None
     is_first_save:bool = False
     have_anarchy_skill:bool = False
-    rational_anarchist_idx:int|None = None
+    #rational_anarchist_idx:int|None = None
     current_stacks:int = 0
     new_stacks:int = 0
     death_flag:bool = False
@@ -31,22 +31,33 @@ class AnarchyState:
         return "AnarchyState(\n  " + "\n  ".join(lines) + "\n)"
 
 
+@dataclass
+class RationalAnarchistState:
+    idx:int|None = None
+    base_description:str|None = None
+    extra_description:str|None = None
+    
+
 anarchy_state = AnarchyState()
+rational_anarchist = RationalAnarchistState()
 
 
 # =====================================================
 # Options
 # =====================================================
-option_use_rational_anarchist = BoolOption(
+@BoolOption(
     identifier="Requires Rational Anarchist",
     value=True,
     description="Anarchy stack loss cap only applies if Rational Anarchist is invested.",
     true_text="Yes",
     false_text="No",
 )
+def option_use_rational_anarchist(opt:BoolOption, new_value:bool) -> None:
+    opt.value = new_value
+    set_rational_anarchist_description()
 
 
-option_max_stacks_to_lose = SliderOption(
+@SliderOption(
     identifier="Max stacks to lose on death",
     value=50,
     min_value=0,
@@ -54,6 +65,9 @@ option_max_stacks_to_lose = SliderOption(
     description="Maximum Anarchy stacks lost upon death.",
     step=5,
 )
+def option_max_stacks_to_lose(opt:SliderOption, new_value:float) -> None:
+    opt.value = int(new_value)
+    set_rational_anarchist_description()
 
 
 option_persist_anarchy = BoolOption(
@@ -66,12 +80,11 @@ option_persist_anarchy = BoolOption(
 
 
 cache_persistent_anarchy_data = HiddenOption("persistent_anarchy_data", {})
-
 debug_mode = HiddenOption("debug_mode", False)
 
 
 # =====================================================
-# Aux functions
+# General functions
 # =====================================================
 def debug_print(message:str) -> None:
     if not debug_mode.value:
@@ -110,16 +123,23 @@ def get_rational_anarchist_index() -> int|None:
 
 def have_point_in_rational_anarchist() -> bool:
     current_build = get_skill_tree()
-    if (anarchy_state.rational_anarchist_idx is None) or (current_build is None):
+    if (rational_anarchist.idx is None) or (current_build is None):
         return False
-    skill_grade = current_build[anarchy_state.rational_anarchist_idx].Grade
+    skill_grade = current_build[rational_anarchist.idx].Grade
     return skill_grade > 0
+
+
+def have_rational_anarchist_skill() -> bool:
+    return rational_anarchist.idx is not None
 
 
 def need_but_not_have_rational_anarchist() -> bool:
     return option_use_rational_anarchist.value and (not have_point_in_rational_anarchist())
 
 
+# =====================================================
+# Anarchy stacks functions
+# =====================================================
 def get_current_anarchy_stacks() -> int:
     return int(
         find_object(
@@ -140,6 +160,17 @@ def get_max_anarchy_stacks() -> int:
     )
 
 
+def get_rational_anarchist_object() -> UObject|None:
+    try:
+        return find_object(
+                "SkillDefinition",
+                RATIONAL_ANARCHIST_PATH
+            )
+    except Exception as exp:
+        debug_print(f"Error geting Rational Anarchist object: {exp}")
+        return None
+
+
 def apply_new_anarchy_stacks() -> None:
     pc = get_pc()
     find_object(
@@ -149,6 +180,9 @@ def apply_new_anarchy_stacks() -> None:
     anarchy_state.new_stacks = 0
 
 
+# =====================================================
+# Persistent stacks functions
+# =====================================================
 def get_save_file() -> str:
     save_file = get_pc().GetWillowGlobals().GetWillowSaveGameManager().LastLoadedFilePath
     return save_file
@@ -169,6 +203,55 @@ def dump_persistent_data(anarchy_data:dict|None=None) -> None:
 
 
 # =====================================================
+# Rational Anarchist description functions
+# =====================================================
+def get_rational_anarchist_base_description(skill:UObject|None=None) -> None:
+    if skill is None:
+        skill = get_rational_anarchist_object()
+    if (skill is not None) and (rational_anarchist.base_description is None):
+        rational_anarchist.base_description = skill.SkillDescription
+
+
+def reset_rational_anarchist_extra_description() -> None:
+    rational_anarchist.extra_description = None
+
+
+def set_rational_anarchist_extra_description() -> None:
+    if not option_use_rational_anarchist.value:
+        reset_rational_anarchist_extra_description()
+        return
+    if option_max_stacks_to_lose.value == 0:
+        rational_anarchist.extra_description = "Additionally, you no longer lose stacks of [skill]Anarchy[-skill] when you die."
+        return
+    max_stacks_to_lose = option_max_stacks_to_lose.value
+    rational_anarchist.extra_description = (
+        f"You lose no more than {max_stacks_to_lose} [skill]Anarchy[-skill] stacks upon death. "
+        + "If this would reduce your [skill]Anarchy[-skill] stacks below 25, they are instead reset to zero."
+    )
+
+
+def update_rational_anarchist_description() -> None:
+    if not have_rational_anarchist_skill():
+        return
+    skill = get_rational_anarchist_object()
+    get_rational_anarchist_base_description(skill)
+    if rational_anarchist.extra_description is None:
+        skill.SkillDescription = rational_anarchist.base_description
+        return
+    skill.SkillDescription = f"{rational_anarchist.base_description} {rational_anarchist.extra_description}"
+
+
+def set_rational_anarchist_description() -> None:
+    set_rational_anarchist_extra_description()
+    update_rational_anarchist_description()
+
+
+def reset_rational_anarchist_description() -> None:
+    reset_rational_anarchist_extra_description()
+    update_rational_anarchist_description()
+
+
+# =====================================================
 # Hooks
 # =====================================================
 @hook("WillowGame.PlayerSkillTree:Initialize", Type.PRE)
@@ -186,8 +269,9 @@ def on_save_game(caller_obj:UObject, caller_params:WrappedStruct, function_retur
         anarchy_state.have_anarchy_skill = have_anarchy_skill()
         if not anarchy_state.have_anarchy_skill:
             return True
-        anarchy_state.rational_anarchist_idx = get_rational_anarchist_index()
+        rational_anarchist.idx = get_rational_anarchist_index()
         anarchy_state.save_file = get_save_file()
+        set_rational_anarchist_description()
         if option_persist_anarchy.value:
             anarchy_persist_data = load_persistent_data()
             anarchy_state.new_stacks = anarchy_persist_data.get(anarchy_state.save_file, 0)
@@ -289,6 +373,8 @@ def on_quit(caller_obj:UObject, caller_params:WrappedStruct, function_return:obj
 # Mod register
 # =====================================================
 mod = build_mod(
+    on_enable=set_rational_anarchist_description,
+    on_disable=reset_rational_anarchist_description,
     options=[
         option_max_stacks_to_lose,
         option_use_rational_anarchist,
