@@ -8,3 +8,8 @@
     - Removed: external JSON dependency
     - Feature: With Rational Anarchist, Anarchy stacks reset to 0 on death if below 25
     - Refactored: simpler and clearer implementation
+<br>
+
+- 1.2:
+    - Refactored: Cleaned few unused codes
+    - Feature: Implemented dinamic description to Rational Anarchist
