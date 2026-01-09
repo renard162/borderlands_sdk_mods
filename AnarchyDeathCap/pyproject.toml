@@ -3,10 +3,10 @@ name = "AnarchyDeathCap"
 version = "1.2"
 authors = [{ name = "renard162" }]
 description = """\
-    Limits Anarchy stack loss on death for the Mechromancer.
-    Persists Anarchy stacks when quitting the game.
-    The stack loss limitation can optionally require points in Rational Anarchist.
-    When the player has points in Rational Anarchist and respawns with fewer than 25 Anarchy stacks, stacks are reset to 0, since building Anarchy is easier from zero than from low values.
+Limits Anarchy stack loss on death for the Mechromancer.
+Persists Anarchy stacks when quitting the game.
+The stack loss limitation can optionally require points in Rational Anarchist.
+When the player has points in Rational Anarchist and respawns with fewer than 25 Anarchy stacks, stacks are reset to 0, since building Anarchy is easier from zero than from low values.
 """
 
 [project.urls]
