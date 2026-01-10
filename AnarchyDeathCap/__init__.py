@@ -35,7 +35,7 @@ class RationalAnarchistState:
     idx:int|None = None
     base_description:str|None = None
     extra_description:str|None = None
-    
+
 
 anarchy_state = AnarchyState()
 rational_anarchist = RationalAnarchistState()
@@ -329,7 +329,7 @@ def on_respawn(caller_obj:UObject, caller_params:WrappedStruct, function_return:
     max_stacks = get_max_anarchy_stacks()
     anarchy_state.new_stacks = min(new_stacks, max_stacks)
     anarchy_state.current_stacks = 0
-    anarchy_state.ticks_until_apply = 600
+    anarchy_state.ticks_until_apply = 660
     ON_TICK_HOOK.enable()
     return True
 
@@ -357,4 +357,3 @@ mod = build_mod(
         cache_persistent_anarchy_data,
     ]
 )
-

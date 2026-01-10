@@ -13,3 +13,7 @@
 - 1.2:
     - Refactored: Cleaned few unused codes
     - Feature: Implemented dinamic description to Rational Anarchist
+<br>
+
+- 1.2.1:
+    - Fix: Adjusted ticks before re-apply Anarchy Stacks from 600 to 660
