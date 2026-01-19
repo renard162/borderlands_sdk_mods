@@ -209,3 +209,6 @@ __marimo__/
 
 #BL SDK Mods
 .sdkmod
+
+#DebugPy
+debugpy/
